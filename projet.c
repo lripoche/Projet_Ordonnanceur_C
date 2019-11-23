@@ -22,7 +22,7 @@ int id_queues[QUEUES_LEN]; /* 0: Wait queue, 1 queue courante */
 key_t keys[10];
 key_t key;
 //int cpu[] = { 0, 2, 3, 5, 6, 8, 4, 1, 7, 9 };
-int cpu[] = { 1, 2, 3 };
+int cpu[] = { 1,2,3 };
 processus process[10];
 processus processFromFile[7];
 processus proc;
@@ -51,6 +51,16 @@ void initTableCpu(char *argv[]) {
         printf("File de message %d créée \n", id_queues[i]);
     }
 
+}
+
+int find_maximum(int a[], int n) {
+  int c, index = 0;
+
+  for (c = 1; c < n; c++)
+    if (a[c] > a[index])
+      index = c;
+
+  return index;
 }
 
 void destroyQueues() {
@@ -129,11 +139,13 @@ void forkQueues(processus p) {
 void rrAlgorithm() {
         processus p;
         int i = 0;
-        int last_element_cpu = (sizeof(cpu)/sizeof(cpu[0])-1)+1;
+        int location,maximum,largest_element_cpu;
+        location = find_maximum(cpu, sizeof(cpu));
+        largest_element_cpu  = cpu[location];
         while(1) {
             printf("File traitée %d \n", i);
 
-            if(i > 2) i = 0;
+            if(i > (largest_element_cpu-1)) i = 0;
             if ((msgrcv(id_queues[1], &p, sizeof(processus) - 4, cpu[i], IPC_NOWAIT)) == -1) {
                 //perror("Erreur de lecture requete \n");
                 //destroyQueues();
@@ -147,10 +159,10 @@ void rrAlgorithm() {
                 printf("Message recu : ");
                 printProcessus(p);
                 p.temps_exec -= 1;
-                if (p.type <= (cpu[last_element_cpu]))
+                if (p.type <= largest_element_cpu)
                 {
                     p.type += 1;
-                    printf("This is last : %d \n", last_element_cpu);
+                    printf("This is last : %d \n", largest_element_cpu);
                 }
                 
                 //printf("Tache accomplie :");
