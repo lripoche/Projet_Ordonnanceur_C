@@ -21,7 +21,8 @@ typedef struct {
 int id_queues[QUEUES_LEN]; /* 0: Wait queue, 1 queue courante */ 
 key_t keys[10];
 key_t key;
-int cpu[] = { 0, 2, 3, 5, 6, 8, 4, 1, 7, 9 };
+//int cpu[] = { 0, 2, 3, 5, 6, 8, 4, 1, 7, 9 };
+int cpu[] = { 1, 2, 3 };
 processus process[10];
 processus processFromFile[7];
 processus proc;
@@ -128,28 +129,42 @@ void forkQueues(processus p) {
 void rrAlgorithm() {
         processus p;
         int i = 0;
+        int last_element_cpu = (sizeof(cpu)/sizeof(cpu[0])-1)+1;
         while(1) {
-            if(i > 10) i = 0;
-            if ((msgrcv(id_queues[1], &p, sizeof(processus) - 4, cpu[i], 0)) == -1) {
-                perror("Erreur de lecture requete \n");
-                destroyQueues();
-                exit(1);
-            }   
+            printf("File traitée %d \n", i);
 
-            printf("Message recu : ");
-            printProcessus(p);
-
-            p.temps_exec -= 1;
-            p.type += 1;
-
-            if(msgsnd(id_queues[1], &p, sizeof(processus) - 4, 0) == -1) {
-                perror("Erreur envoi de message");
-                destroyQueues();
-                exit(1);
-            }
+            if(i > 2) i = 0;
+            if ((msgrcv(id_queues[1], &p, sizeof(processus) - 4, cpu[i], IPC_NOWAIT)) == -1) {
+                //perror("Erreur de lecture requete \n");
+                //destroyQueues();
+            }  
             
-            printf("Processus après traitement : ");
-            printProcessus(p);
+            if(p.temps_exec<=0){
+                sleep(1);
+                i++;
+                continue;}
+            else {
+                printf("Message recu : ");
+                printProcessus(p);
+                p.temps_exec -= 1;
+                if (p.type <= (cpu[last_element_cpu]))
+                {
+                    p.type += 1;
+                    printf("This is last : %d \n", last_element_cpu);
+                }
+                
+                //printf("Tache accomplie :");
+                //printProcessus(p);
+                
+                if(msgsnd(id_queues[1], &p, sizeof(processus) - 4, 0) == -1) {
+                    perror("Erreur envoi de message");
+                    destroyQueues();
+                    exit(1);
+                }
+                printf("Processus après traitement : ");
+                printProcessus(p);
+
+            }
             i++;
         }
         
@@ -186,7 +201,7 @@ void createProcess() {
 
 void readFile() {
     FILE *file = NULL;
-    if((file = fopen("datas", "r+")) == NULL) {
+    if((file = fopen("jeu", "r+")) == NULL) {
         perror("Erreur ouverture fichier");
         exit(1);
     }
@@ -198,8 +213,8 @@ void readFile() {
         processus p;
         p.pid = k;
         p.date_soumission = atoi(&chaine[0]);
-        p.temps_exec = atoi(&chaine[1]);
-        p.type = atoi(&chaine[2]);
+        p.temps_exec = atoi(&chaine[2]);
+        p.type = atoi(&chaine[4]);
         processFromFile[k] = p;
         printProcessus(p);
         k++;
