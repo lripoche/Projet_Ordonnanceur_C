@@ -8,8 +8,14 @@
 #include <time.h>
 #include <errno.h>
 #include <string.h>
+#include <pthread.h>
 
 #define QUEUES_LEN 2
+
+int inutilise;
+pthread_t t1, t2;
+
+int location,maximum,largest_element_cpu;
 
 typedef struct {
     long type;
@@ -132,14 +138,13 @@ void forkQueues(processus p) {
             destroyQueues();
 	        exit(1);
 	    }
-        wait(&status);
+       // wait(&status);
     }
 }
 
-void rrAlgorithm() {
+void* rrAlgorithm(void *inutilise) {
         processus p;
         int i = 0;
-        int location,maximum,largest_element_cpu;
         location = find_maximum(cpu, sizeof(cpu));
         largest_element_cpu  = cpu[location];
         while(1) {
@@ -151,7 +156,7 @@ void rrAlgorithm() {
                 //destroyQueues();
             }  
             
-            if(p.temps_exec<=0){
+            if(p.temps_exec<=0){ //Permet de sortir les processus completement executes
                 sleep(1);
                 i++;
                 continue;}
@@ -186,15 +191,14 @@ int getRandomInt(int intervalle) {
     return (rand() % intervalle);
 }
 
-processus createNewProcessus(int pid) {
-    processus p;
+processus createNewProcessus(processus p;) {
     srand(time(NULL));
     sleep(1);
     p.temps_exec = getRandomInt(10);
     sleep(1);
     srand(time(NULL));
     p.date_soumission = getRandomInt(3) + 1;
-    p.pid = pid;
+    p.pid = getRandomInt(10000);
     printProcessus(p);
     return p;
 }
@@ -206,12 +210,12 @@ void createProcess() {
             createNewProcessus(getpid()); 
             exit(0);
         } else {
-            wait(&status);
+         //   wait(&status);
         }
     }
 }
 
-void readFile() {
+void* readFile(void *inutilise) {
     FILE *file = NULL;
     if((file = fopen("jeu", "r+")) == NULL) {
         perror("Erreur ouverture fichier");
@@ -242,12 +246,34 @@ void readFile() {
   // putProcessInCurrentQueue();
 }
 
+void randomProcessus () {
+    location = find_maximum(cpu, sizeof(cpu));
+    largest_element_cpu  = cpu[location];
+    while (1)
+    {
+        int k =0;
+        int p = getRandomInt(largest_element_cpu);
+        processus p;
+        createNewProcessus(p);
+        p.type=p;
+    }
+    
+}
+
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
     initTableCpu(argv);
-    readFile();
-    rrAlgorithm();
+
+    // Implementation des threads
+    pthread_create(&t1, NULL, readFile, NULL);
+    pthread_create(&t2, NULL, rrAlgorithm, NULL);
+
+    pthread_join(t1, NULL);
+    pthread_join(t2, NULL);
+
+    //readFile();
+    //rrAlgorithm();
     destroyQueues();
    // createProcess();
    // readFile();
