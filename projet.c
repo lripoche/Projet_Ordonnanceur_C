@@ -13,7 +13,7 @@
 #define QUEUES_LEN 2
 
 int inutilise;
-pthread_t t1, t2;
+pthread_t t1, t2, t3;
 
 int location,maximum,largest_element_cpu;
 
@@ -191,7 +191,7 @@ int getRandomInt(int intervalle) {
     return (rand() % intervalle);
 }
 
-processus createNewProcessus(processus p;) {
+processus createNewProcessus(processus p) {
     srand(time(NULL));
     sleep(1);
     p.temps_exec = getRandomInt(10);
@@ -203,17 +203,6 @@ processus createNewProcessus(processus p;) {
     return p;
 }
 
-void createProcess() {
-    int i, status;
-    for(i = 0; i < 10; i++) {
-        if(!fork()) {  //Fils
-            createNewProcessus(getpid()); 
-            exit(0);
-        } else {
-         //   wait(&status);
-        }
-    }
-}
 
 void* readFile(void *inutilise) {
     FILE *file = NULL;
@@ -246,16 +235,26 @@ void* readFile(void *inutilise) {
   // putProcessInCurrentQueue();
 }
 
-void randomProcessus () {
+void* randomProcessus (void *inutilise) {
     location = find_maximum(cpu, sizeof(cpu));
     largest_element_cpu  = cpu[location];
+    processus p;
     while (1)
     {
-        int k =0;
-        int p = getRandomInt(largest_element_cpu);
-        processus p;
-        createNewProcessus(p);
-        p.type=p;
+        p.type = getRandomInt(largest_element_cpu);
+        p.pid = getRandomInt(10000);
+        p.temps_exec = getRandomInt(10);
+        p.date_soumission = getRandomInt(10);
+        printf("Random que l'on va ajouter %d\n",p.pid);
+        if(msgsnd(id_queues[1], &p, sizeof(processus) - 4, 0) == -1) {
+                    perror("Erreur envoi de message du random \n");
+                    //destroyQueues();
+                    //exit(1);
+        }
+        else {
+            printf("Random bien ajouté %d\n", p.pid);
+        }
+        sleep(1);
     }
     
 }
@@ -268,9 +267,12 @@ int main(int argc, char *argv[]) {
     // Implementation des threads
     pthread_create(&t1, NULL, readFile, NULL);
     pthread_create(&t2, NULL, rrAlgorithm, NULL);
+    pthread_create(&t3, NULL, randomProcessus, NULL);
 
     pthread_join(t1, NULL);
     pthread_join(t2, NULL);
+    pthread_join(t3, NULL);
+
 
     //readFile();
     //rrAlgorithm();
