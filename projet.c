@@ -77,58 +77,74 @@ void destroyQueues() {
 
 void* rrAlgorithm(void *inutilise) {    //Va executer l'algorithme round robin sur une file
         processus p;
-        int i = 0;
         location = find_maximum(cpu, sizeof(cpu));
         largest_element_cpu  = cpu[location];
-        while(1) {
-            if( i > (largest_element_cpu-1)) { 
-                i = 0;
+        int cpu_len = sizeof(cpu)/sizeof(cpu[0]);
+        int priorite=0;
+        for(int quantum; 1; quantum++) {
+            printf("=== Quantum %d ===\n", quantum);
+            if( priorite > cpu_len) { //Permet de remettre le compteur à 0 si il depasse la taille de la table d'allocation
+                printf("  balbal 1 \n");
+                priorite = 0;
             }
-            printf("File traitée %d \n", i);
+            printf("  File traitée %d %d\n", priorite, cpu_len);
             P(0);
-            if((msgrcv(id_queues[1], &p, sizeof(processus) - 4, cpu[i], IPC_NOWAIT)) == -1) { //Permet, dans le cas ou le la file est vide, passer à la file suivante
+            p.temps_exec = -2;
+            int j = 0;
+            do
+            {
+                if((msgrcv(id_queues[1], &p, sizeof(processus) - 4, cpu[priorite+j], IPC_NOWAIT)) == -1) { //Permet, dans le cas ou le la file est vide, passer à la file suivante
                 //perror("Erreur de lecture requete \n");
-                /*if(cpu[i]=largest_element_cpu){
+                /*if(cpu[i]=largest_element_cpu){ //Si on recoit deja les msg de la plus grande priorite, alors on remet le compteur a 0
                     i=0;
+                    V(1);
                     continue;
                 }
                 else
                 {
                     i++;
+                    V(1);
                     continue;
-                }  */               
-            }
+                } */            
+                }
+                if(p.temps_exec == -2){
+                    printf("La file est vide %d\n", cpu[priorite+j]);
+                }
+                j++;
+            } while (p.temps_exec == -2 & j <=cpu_len);
+            
+            
             V(1);  
             
-            if(p.temps_exec<=0){ //Permet de sortir les processus completement executes
+            if(p.temps_exec<=0) { //Permet de sortir les processus completement executes
+                printf("  Le processus %d a finit son execution \n", p.pid);
                 sleep(1);
-                i++;
-                continue;}
+                continue;
+            }
             else {
-                printf("Message recu : ");
+                printf("  Message recu : ");
                 printProcessus(p);
                 p.temps_exec -= 1;
                 if (p.type <= largest_element_cpu) //Permet de ne pas mettre une priorite superieure a la priorite max de la table
                 {
                     p.type += 1;
-                    printf("This is last : %d \n", largest_element_cpu);
+                    printf("  This is last : %d \n", largest_element_cpu);
                 }
                 
                 //printf("Tache accomplie :");
                 //printProcessus(p);
                 
                 if(msgsnd(id_queues[1], &p, sizeof(processus) - 4, 0) == -1) {
-                    perror("Erreur envoi de message");
+                    perror("  Erreur envoi de message");
                     destroyQueues();
                     exit(1);
                 }
-                printf("Processus après traitement : ");
+                printf("  Processus après traitement : ");
                 printProcessus(p);
 
             }
-            i++;
-        }
-        
+            priorite++;
+        }   
     }
 
 int getRandomInt(int intervalle) {
