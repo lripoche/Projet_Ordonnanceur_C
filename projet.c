@@ -33,7 +33,6 @@ processus process[10];
 processus processFromFile[7];
 processus proc;
 
-
 void printProcessus(processus p) {
     printf("Processus n°%d, date de soumission : %d, temps d\'execution : %d, priorite : %ld\n", p.pid, p.date_soumission, p.temps_exec, p.type);
 }
@@ -82,12 +81,14 @@ void* rrAlgorithm(void *inutilise) {    //Va executer l'algorithme round robin s
         location = find_maximum(cpu, sizeof(cpu));
         largest_element_cpu  = cpu[location];
         while(1) {
+            if( i > (largest_element_cpu-1)) { 
+                i = 0;
+            }
             printf("File traitée %d \n", i);
-
-            if(i > (largest_element_cpu-1)) i = 0;
-            while((msgrcv(id_queues[1], &p, sizeof(processus) - 4, cpu[i], IPC_NOWAIT)) == -1) { //Permet, dans le cas ou le la file est vide, passer à la file suivante
-                perror("Erreur de lecture requete \n");
-                if(cpu[i]=largest_element_cpu){
+            P(0);
+            if((msgrcv(id_queues[1], &p, sizeof(processus) - 4, cpu[i], IPC_NOWAIT)) == -1) { //Permet, dans le cas ou le la file est vide, passer à la file suivante
+                //perror("Erreur de lecture requete \n");
+                /*if(cpu[i]=largest_element_cpu){
                     i=0;
                     continue;
                 }
@@ -95,10 +96,9 @@ void* rrAlgorithm(void *inutilise) {    //Va executer l'algorithme round robin s
                 {
                     i++;
                     continue;
-                }
-                                
-                //destroyQueues();
-            }  
+                }  */               
+            }
+            V(1);  
             
             if(p.temps_exec<=0){ //Permet de sortir les processus completement executes
                 sleep(1);
@@ -108,7 +108,7 @@ void* rrAlgorithm(void *inutilise) {    //Va executer l'algorithme round robin s
                 printf("Message recu : ");
                 printProcessus(p);
                 p.temps_exec -= 1;
-                if (p.type <= largest_element_cpu)
+                if (p.type <= largest_element_cpu) //Permet de ne pas mettre une priorite superieure a la priorite max de la table
                 {
                     p.type += 1;
                     printf("This is last : %d \n", largest_element_cpu);
@@ -176,6 +176,7 @@ void* randomProcessus (void *inutilise) {       //Cree un processus aleatoire to
         p.temps_exec = getRandomInt(10);
         p.date_soumission = getRandomInt(10);
         printf("Random que l'on va ajouter %d\n",p.pid);
+        P(1);
         if(msgsnd(id_queues[1], &p, sizeof(processus) - 4, 0) == -1) {
                     perror("Erreur envoi de message du random \n");
                     //destroyQueues();
@@ -184,6 +185,7 @@ void* randomProcessus (void *inutilise) {       //Cree un processus aleatoire to
         else {
             printf("Random bien ajouté %d\n", p.pid);
         }
+        V(0);
         sleep(1);
     }
     
