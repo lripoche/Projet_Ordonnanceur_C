@@ -45,18 +45,12 @@ void initTableCpu(char *argv[]) {
 	        perror("Erreur de creation de la clé \n");
 	        exit(1);
         }  
-     /*   if ((keys[i] = ftok(argv[0], 1)) == -1) {
-	        perror("Erreur de creation de la clé \n");
-	        exit(1);
-        }   */
-        //if ((id_queues[i] = msgget(IPC_PRIVATE, 0600)) == -1) {
         if ((id_queues[i]  = msgget(keys[i], 0750 | IPC_CREAT | IPC_EXCL)) == -1) {
 	        perror("Erreur de creation de la file\n");
 	        exit(1);
         } 
         printf("File de message %d créée \n", id_queues[i]);
     }
-
 }
 
 int find_maximum(int a[], int n) {
@@ -82,67 +76,7 @@ void destroyQueues() {
     }
 }
 
-void readInQueue(int id, long type) {  //serveur
-    processus p;
-    if ((msgrcv(id, &p, sizeof(processus) - 4, type, 0)) == -1) {
-        perror("Erreur de lecture requete \n");
-        destroyQueues();
-        exit(1);
-    }
-     printf("Message recu : %ld", p.type);
-}
-
-void putInQueue(int id, processus p) {  //client
-    printf("Envoi du message ");
-    printProcessus(p);
-    if(msgsnd(id, &p, sizeof(processus) - 4, 0) == -1) {
-        perror("Erreur envoi de message");
-        destroyQueues();
-        exit(1);
-    }
-    //readInQueue(id_queues[1], 7);
-}
-
-void forkQueues(processus p) {
-    int status;
-    processus reponse;
-    if(!fork()) {  //fils
-        if(msgsnd(id_queues[1], &p, sizeof(processus) - 4, 0) == -1) {
-            perror("Erreur envoi de message");
-            destroyQueues();
-            exit(1);
-        }
-        if ((msgrcv(id_queues[1], &reponse, sizeof(processus) - 4, 0, 0)) == -1) {
-            perror("Erreur de lecture requete \n");
-            destroyQueues();
-            exit(1);
-        }   
-        printf("Processus traité : ");
-        printProcessus(reponse);
-        exit(0);
-    } else {
-        if ((msgrcv(id_queues[1], &p, sizeof(processus) - 4, 0, 0)) == -1) {
-            perror("Erreur de lecture requete \n");
-            destroyQueues();
-            exit(1);
-        }   
-        printf("Processus recu par le serveur : ");
-        printProcessus(p);
-        reponse.pid = 1;
-        reponse.temps_exec = p.temps_exec - 1;  //Enleve 1 quantum de temps 
-        reponse.type = p.type + 1;         //Priorité -1
-        //reponse.date_soumission = p.date_soumission;
-
-        if (msgsnd(id_queues[1], &reponse, sizeof(processus) - 4,0) == -1) {
-	        perror("Erreur de lecture requete \n");
-            destroyQueues();
-	        exit(1);
-	    }
-       // wait(&status);
-    }
-}
-
-void* rrAlgorithm(void *inutilise) {
+void* rrAlgorithm(void *inutilise) {    //Va executer l'algorithme round robin sur une file
         processus p;
         int i = 0;
         location = find_maximum(cpu, sizeof(cpu));
@@ -151,8 +85,18 @@ void* rrAlgorithm(void *inutilise) {
             printf("File traitée %d \n", i);
 
             if(i > (largest_element_cpu-1)) i = 0;
-            if ((msgrcv(id_queues[1], &p, sizeof(processus) - 4, cpu[i], IPC_NOWAIT)) == -1) {
-                //perror("Erreur de lecture requete \n");
+            while((msgrcv(id_queues[1], &p, sizeof(processus) - 4, cpu[i], IPC_NOWAIT)) == -1) { //Permet, dans le cas ou le la file est vide, passer à la file suivante
+                perror("Erreur de lecture requete \n");
+                if(cpu[i]=largest_element_cpu){
+                    i=0;
+                    continue;
+                }
+                else
+                {
+                    i++;
+                    continue;
+                }
+                                
                 //destroyQueues();
             }  
             
@@ -191,19 +135,6 @@ int getRandomInt(int intervalle) {
     return (rand() % intervalle);
 }
 
-processus createNewProcessus(processus p) {
-    srand(time(NULL));
-    sleep(1);
-    p.temps_exec = getRandomInt(10);
-    sleep(1);
-    srand(time(NULL));
-    p.date_soumission = getRandomInt(3) + 1;
-    p.pid = getRandomInt(10000);
-    printProcessus(p);
-    return p;
-}
-
-
 void* readFile(void *inutilise) {
     FILE *file = NULL;
     if((file = fopen("jeu", "r+")) == NULL) {
@@ -232,10 +163,9 @@ void* readFile(void *inutilise) {
     if(fclose(file) != 0) {
         perror("Erreur fermeture fichier");
     }
-  // putProcessInCurrentQueue();
 }
 
-void* randomProcessus (void *inutilise) {
+void* randomProcessus (void *inutilise) {       //Cree un processus aleatoire toutes les secondes
     location = find_maximum(cpu, sizeof(cpu));
     largest_element_cpu  = cpu[location];
     processus p;
