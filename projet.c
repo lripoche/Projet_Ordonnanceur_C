@@ -199,7 +199,7 @@ void* randomProcessus (void *inutilise) {       //Cree un processus aleatoire to
             printf("Random bien ajouté %d\n", p.pid);
         }
         V(0);
-        sleep(100);
+        sleep(1);
     }
     
 }
