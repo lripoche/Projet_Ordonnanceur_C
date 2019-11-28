@@ -28,7 +28,7 @@ int id_queues[QUEUES_LEN]; /* 0: Wait queue, 1 queue courante */
 key_t keys[10];
 key_t key;
 //int cpu[] = { 0, 2, 3, 5, 6, 8, 4, 1, 7, 9 };
-int cpu[] = { 1,2,3 };
+int cpu[] = { 1,7,2 };
 processus process[10];
 processus processFromFile[7];
 processus proc;
@@ -81,37 +81,34 @@ void* rrAlgorithm(void *inutilise) {    //Va executer l'algorithme round robin s
         largest_element_cpu  = cpu[location];
         int cpu_len = sizeof(cpu)/sizeof(cpu[0]);
         int priorite=0;
-        for(int quantum; 1; quantum++) {
-            printf("=== Quantum %d ===\n", quantum);
+        int quantum = 5; //Permet de gérer le quantum variable
+        for(int i; 1; i=i+quantum) {
+            printf("=== Quantum %d ===\n", i);
             if( priorite > cpu_len) { //Permet de remettre le compteur à 0 si il depasse la taille de la table d'allocation
                 printf("  balbal 1 \n");
                 priorite = 0;
             }
-            printf("  File traitée %d %d\n", priorite, cpu_len);
+            printf("  File traitée %d %d\n", priorite, largest_element_cpu);
             P(0);
-            p.temps_exec = -2;
-            int j = 0;
-            do
+            int count = cpu[priorite];
+            while((msgrcv(id_queues[1], &p, sizeof(processus) - 4, count, IPC_NOWAIT)) == -1) { //Permet, dans le cas ou le la file est vide, passer à la file suivante
+            //perror("Erreur de lecture requete \n");
+            if(count>largest_element_cpu){ //Si on recoit deja les msg de la plus grande priorite, alors on remet le compteur a 0
+                printf("  balbal 2 \n");
+
+                count = 0;
+                V(1);
+            }
+            else
             {
-                if((msgrcv(id_queues[1], &p, sizeof(processus) - 4, cpu[priorite+j], IPC_NOWAIT)) == -1) { //Permet, dans le cas ou le la file est vide, passer à la file suivante
-                //perror("Erreur de lecture requete \n");
-                /*if(cpu[i]=largest_element_cpu){ //Si on recoit deja les msg de la plus grande priorite, alors on remet le compteur a 0
-                    i=0;
-                    V(1);
-                    continue;
-                }
-                else
-                {
-                    i++;
-                    V(1);
-                    continue;
-                } */            
-                }
-                if(p.temps_exec == -2){
-                    printf("La file est vide %d\n", cpu[priorite+j]);
-                }
-                j++;
-            } while (p.temps_exec == -2 & j <=cpu_len);
+                printf("  File traitée jhhjhj %d\n", count);
+
+                count++;
+                V(1);
+            }         
+            }
+                
+
             
             
             V(1);  
@@ -202,7 +199,7 @@ void* randomProcessus (void *inutilise) {       //Cree un processus aleatoire to
             printf("Random bien ajouté %d\n", p.pid);
         }
         V(0);
-        sleep(1);
+        sleep(100);
     }
     
 }
