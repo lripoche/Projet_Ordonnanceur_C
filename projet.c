@@ -138,7 +138,7 @@ void* rrAlgorithm(void *inutilise) {    //Va executer l'algorithme round robin s
             
             if(p.temps_exec<=0) { //Permet de sortir les processus completement executes
                 printf("  Le processus %d a finit son execution \n", p.pid);
-                usleep(1);
+                sleep(1);
                 continue;
             }
             else {
@@ -223,7 +223,7 @@ void* randomProcessus (void *inutilise) {       //Cree un processus aleatoire to
         }
         V(0);
         P(1);
-        usleep(1);
+        sleep(1);
     }
     
 }
