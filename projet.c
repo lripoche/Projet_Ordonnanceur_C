@@ -10,7 +10,6 @@
 #include <string.h>
 #include <pthread.h>
 
-#define QUEUES_LEN 2
 #define largest_element_cpu 10
 #define cpu_len 10
 
@@ -26,42 +25,36 @@ typedef struct {
     int date_soumission;
 } processus;
 
-int id_queues[QUEUES_LEN]; /* 0: Wait queue, 1 queue courante */ 
-key_t keys[10];
 key_t key;
 //int cpu[] = { 0, 2, 3, 5, 6, 8, 4, 1, 7, 9 };
-int prct[10] = {26,20,16,12,9,7,5,3,2,1};
+int index_iteration[10] = {26,20,16,12,9,7,5,3,2,1};
 int cpu[100];
-processus process[10];
-processus processFromFile[7];
-processus proc;
+
 
 void printProcessus(processus p) {
     printf("Processus n°%d, date de soumission : %d, temps d\'execution : %d, priorite : %ld\n", p.pid, p.date_soumission, p.temps_exec, p.type);
 }
 
-void initTableCpu(char *argv[]) {
-    int i;
-    for(i = 0; i < QUEUES_LEN; i++) {
-        if ((key = ftok(argv[0], i)) == -1) {
-	        perror("Erreur de creation de la clé \n");
-	        exit(1);
-        }  
-        if ((id_queues[i]  = msgget(keys[i], 0750 | IPC_CREAT | IPC_EXCL)) == -1) {
-	        perror("Erreur de creation de la file\n");
-	        exit(1);
-        } 
-        printf("File de message %d créée \n", id_queues[i]);
-    }
+void initIPC(char *argv[]) {
+    if ((key = ftok(argv[0], 1)) == -1) {
+	    perror("Erreur de creation de la clé \n");
+	    exit(1);
+    }  
+    if ((msgget(1, 0750 | IPC_CREAT | IPC_EXCL)) == -1) {
+	    perror("Erreur de creation de la file\n");
+	    exit(1);
+    } 
+    printf("File de message créée %d \n", key);
+
 }
 
-void generateTableAlloc(){
+void generateTableAlloc(){                  //Va generer une table d allocation en fonction du nombre d iteration indique dans la table index_iteration
     for (int i = 0; i < 10; i++)
     {
-        int iteration=prct[i];
+        int iteration=index_iteration[i];
         for (int j = 0; j < iteration; j++)
         {
-            int n = (sizeof(cpu)/sizeof(cpu[0]))+1;
+            int n = (sizeof(cpu)/sizeof(cpu[0]))+1; //Taille actuelle de la table cpu
             cpu[n]=i;
         }
         
@@ -69,74 +62,43 @@ void generateTableAlloc(){
     
 }
 
-int find_maximum(int arr[], int n) {
-      int i; 
-     
-    // Initialize maximum element 
-    int max = arr[0]; 
-  
-    // Traverse array elements from second and 
-    // compare every element with current max   
-    for (i = 1; i < n; i++) 
-        if (arr[i] > max) 
-            max = i; 
-  
-    return max; 
-}
-
-void destroyQueues() {
-    int i;
-    for(i = 0; i < QUEUES_LEN; i++) {
-       if((id_queues[i] != 0)) {
-            if(msgctl(id_queues[i], IPC_RMID, NULL) == -1) {
-                perror("Erreur suppression de la file \n");
-                exit(1);
-            }
-            printf("Suppression de la file %d\n", id_queues[i]);
-       }
+void destroyQueues() {  
+    if(msgctl(1, IPC_RMID, NULL) == -1) {
+        perror("Erreur suppression de la file \n");
+        exit(1);
     }
+    printf("Suppression de la file %d\n", key);
 }
 
-void* rrAlgorithm(void *inutilise) {    //Va executer l'algorithme round robin sur une file
+void* rrAlgorithm(void *inutilise) {            //Va executer l'algorithme round robin sur une file
         processus p;
-        //int cpu_len = sizeof(cpu)/sizeof(cpu[0]);
-        //location = find_maximum(cpu, cpu_len);
-        //largest_element_cpu  = cpu[location];
         int priorite=0;
-        int quantum = 1; //Permet de gérer le quantum variable
-        int count;
+        int quantum = 1;                        //Permet de gérer le quantum variable
+        int count;                              //Priorite courante dans le cas d une file vide
         for(int i; 1; i=i+quantum) {
             printf("=== Quantum %d ===\n", i);
-            if( priorite > cpu_len) { //Permet de remettre le compteur à 0 si il depasse la taille de la table d'allocation
-                printf("  balbal 1 \n");
+            if( priorite > cpu_len) {           //Permet de remettre le compteur à 0 s il depasse la taille de la table d'allocation
                 priorite = 0;
             }
-            printf("  File traitée %d %d\n", priorite, largest_element_cpu);
+            printf("  File traitée %d\n", priorite);
             P(0);
-            count = cpu[priorite];  // priorité courante
-            while((msgrcv(id_queues[1], &p, sizeof(processus) - 4, count, IPC_NOWAIT)) == -1) { //Permet, dans le cas ou le la file est vide, passer à la file suivante
-            //perror("Erreur de lecture requete \n");
-            if(count > largest_element_cpu){ //Si on recoit deja les msg de la plus grande priorite, alors on remet le compteur a 0
-                printf("  balbal 2 \n");
-
-                count = 0;
-                V(1);
+            count = cpu[priorite];              //Affecte la priorite courante, dans le cas ou la priorite courante n existe pas, a la priorite courante
+            while((msgrcv(1, &p, sizeof(processus) - 4, count, IPC_NOWAIT)) == -1) { //Tant qu'on ne trouve pas la priorite courante, on passe a la priorite suivante
+                if(count > largest_element_cpu){ //Si on recoit deja les msg de la plus grande priorite, alors on remet le compteur a 0
+                    count = 0;
+                    V(1);
+                }
+                else
+                {
+                    printf("  File traitée %d\n", count);
+                    count++;                    //Si la priorite n existe pas, on incremente la priorite courante
+                    V(1);
+                }         
             }
-            else
-            {
-                printf("  File traitée jhhjhj %d\n", count);
 
-                count++;
-                V(1);
-            }         
-            }
-                
-
-            
-            
             V(1);  
             
-            if(p.temps_exec<=0) { //Permet de sortir les processus completement executes
+            if(p.temps_exec<=0) {               //Permet de sortir les processus completement executes
                 printf("  Le processus %d a finit son execution \n", p.pid);
                 sleep(1);
                 continue;
@@ -148,20 +110,14 @@ void* rrAlgorithm(void *inutilise) {    //Va executer l'algorithme round robin s
                 if (p.type <= largest_element_cpu) //Permet de ne pas mettre une priorite superieure a la priorite max de la table
                 {
                     p.type += 1;
-                    printf("  This is last : %d \n", largest_element_cpu);
                 }
-                
-                //printf("Tache accomplie :");
-                //printProcessus(p);
-                
-                if(msgsnd(id_queues[1], &p, sizeof(processus) - 4, 0) == -1) {
-                    perror("  Erreur envoi de message");
+                if(msgsnd(1, &p, sizeof(processus) - 4, 0) == -1) {
+                    perror("  Erreur envoi de message post traitement");
                     destroyQueues();
                     exit(1);
                 }
                 printf("  Processus après traitement : ");
                 printProcessus(p);
-
             }
             priorite++;
         }   
@@ -187,10 +143,9 @@ void* readFile(void *inutilise) {
         p.date_soumission = atoi(&chaine[0]);
         p.temps_exec = atoi(&chaine[2]);
         p.type = atoi(&chaine[4]);
-        processFromFile[k] = p;
         printProcessus(p);
         k++;
-        if(msgsnd(id_queues[1], &p, sizeof(processus) - 4, 0) == -1) {
+        if(msgsnd(1, &p, sizeof(processus) - 4, 0) == -1) {
             perror("Erreur envoi de message");
             destroyQueues();
             exit(1);
@@ -201,9 +156,7 @@ void* readFile(void *inutilise) {
     }
 }
 
-void* randomProcessus (void *inutilise) {       //Cree un processus aleatoire toutes les secondes
-    //location = find_maximum(cpu, sizeof(cpu));
-    //largest_element_cpu  = cpu[location];
+void* randomProcessus (void *inutilise) {       //Cree un processus aleatoire a intervalle regulier
     processus p;
     while (1)
     {
@@ -211,15 +164,11 @@ void* randomProcessus (void *inutilise) {       //Cree un processus aleatoire to
         p.pid = getRandomInt(10000);
         p.temps_exec = getRandomInt(10);
         p.date_soumission = getRandomInt(10);
-        printf("Random que l'on va ajouter %d\n",p.pid);
-        
-        if(msgsnd(id_queues[1], &p, sizeof(processus) - 4, 0) == -1) {
-                    perror("Erreur envoi de message du random \n");
-                    //destroyQueues();
-                    //exit(1);
+        if(msgsnd(key, &p, sizeof(processus) - 4, 0) == -1) {
+                    perror("Erreur envoi de message du processus aléatoire \n");
         }
         else {
-            printf("Random bien ajouté %d\n", p.pid);
+            printf("Processus aléatoire bien ajouté %d\n", p.pid);
         }
         V(0);
         P(1);
@@ -230,23 +179,27 @@ void* randomProcessus (void *inutilise) {       //Cree un processus aleatoire to
 
 
 int main(int argc, char *argv[]) {
+
+    //Initialisation de srand
     srand(time(NULL));
-    initTableCpu(argv);
+
+    //Initisalisation de la file
+    initIPC(argv);
+
+    //Creation de la table d allocation
     generateTableAlloc();
+
     // Implementation des threads
     pthread_create(&t1, NULL, readFile, NULL);
     pthread_create(&t2, NULL, rrAlgorithm, NULL);
     pthread_create(&t3, NULL, randomProcessus, NULL);
 
+    //Synchronisation de la fin des threads
     pthread_join(t1, NULL);
     pthread_join(t2, NULL);
     pthread_join(t3, NULL);
 
-
-    //readFile();
-    //rrAlgorithm();
+    //Suppression de la file
     destroyQueues();
-   // createProcess();
-   // readFile();
     return 0;
 }
