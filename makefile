@@ -2,14 +2,29 @@ FLAGS=-W -Wall -pedantic
 
 all: main clean
 
-main: MySemaphore.o projet.o
-	gcc -o projet MySemaphore.o projet.o $(FLAGS) -lpthread
+main: semaphore.o main.o allocCPU.o randomProcessus.o readfile.o utils.o rrAlgorithm.o
+	gcc -o program main.o semaphore.o readfile.o utils.o allocCPU.o rrAlgorithm.o randomProcessus.o $(FLAGS) -lpthread
 
-MySemaphore.o: MySemaphore.c
-	gcc -o MySemaphore.o -c MySemaphore.c $(FLAGS)
+semaphore.o: semaphore.c
+	gcc -o semaphore.o -c semaphore.c $(FLAGS)
 
-projet.o: projet.c MySemaphore.h
-	gcc -o projet.o -c projet.c $(FLAGS)
+allocCPU.o: allocCPU.c header.h
+	gcc -o allocCPU.o -c allocCPU.c $(FLAGS)
+
+randomProcessus.o: randomProcessus.c header.h
+	gcc -o randomProcessus.o -c randomProcessus.c $(FLAGS)
+
+readfile.o: readfile.c header.h
+	gcc -o readfile.o -c readfile.c $(FLAGS)
+
+utils.o: utils.c header.h
+	gcc -o utils.o -c utils.c $(FLAGS)
+
+rrAlgorithm.o: rrAlgorithm.c header.h
+	gcc -o rrAlgorithm.o -c rrAlgorithm.c $(FLAGS)
+
+main.o: main.c semaphore.h header.h
+	gcc -o main.o -c main.c $(FLAGS)
 
 clean:
 	rm -rf *.o

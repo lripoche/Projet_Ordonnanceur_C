@@ -1,4 +1,4 @@
-#include "MySemaphore.h"
+#include "semaphore.h"
 
 int initsem(key_t semkey) 
 {
